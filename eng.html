@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Balkan Express: Extended Edition</title>
+<style>
+:root {
+  --terra: #ea580c; --terra-d: #c2410c;
+  --navy: #0f172a; --navy-m: #1e293b;
+  --teal: #0284c7; --teal-d: #0369a1;
+  --gold: #eab308; --green: #059669;
+  --danger: #dc2626; --danger-l: #fee2e2;
+  --bg: #f1f5f9; --card: #ffffff;
+  --border: #e2e8f0; --muted: #64748b; --faint: #94a3b8;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  overflow: hidden; background: #cbd5e1;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  display: flex; justify-content: center; align-items: stretch;
+}
+#app {
+  width: 100%; max-width: 600px; height: 100%;
+  background: var(--bg); display: flex; flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,0,0,0.18); position: relative; overflow: hidden;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; height: 100%; flex-direction: column; }
+.screen.active { display: flex; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── HUD ── */
+.hud { flex-shrink: 0; background: var(--navy); color: #fff; }
+.hud-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 18px; border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.hud-city { font-size: .95em; font-weight: 800; letter-spacing: .3px; }
+.hud-xp { font-size: .92em; font-weight: 700; color: var(--gold); }
+.hud-stats { display: flex; gap: 8px; padding: 10px 18px; }
+.stat-box {
+  flex: 1; border-radius: 8px; text-align: center; padding: 9px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transition: background .3s;
+}
+.stat-box .val { font-size: 1.25em; font-weight: 900; color: #fff; }
+.stat-box .lbl { font-size: .48em; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; opacity: .85; color: #fff; }
+.hud-bar {
+  background: #1e293b; display: flex; justify-content: space-between;
+  padding: 7px 18px; font-size: .82em; font-weight: 700; color: #cbd5e1;
+}
+.hud-bar strong { color: #fff; }
+.hud-bar .danger-val { color: #f87171; }
+.log-bar {
+  background: var(--navy-m); color: var(--gold); padding: 6px 18px;
+  font-size: .76em; font-weight: 600; border-top: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 28px;
+}
+
+/* ── SCROLL AREA ── */
+.scroll {
+  flex-grow: 1; overflow-y: auto; padding: 18px;
+  background: var(--bg); overscroll-behavior: contain;
+}
+.scroll::-webkit-scrollbar { width: 4px; }
+.scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+/* ── FOOTER ── */
+.footer {
+  flex-shrink: 0; padding: 11px 16px; background: var(--card);
+  border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: stretch;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  background: var(--terra); color: #fff; border: none;
+  padding: 13px 14px; font-size: .96em; cursor: pointer;
+  flex: 1; border-radius: 9px; font-weight: 800;
+  transition: filter .12s, transform .1s; line-height: 1.2;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn:disabled { background: var(--faint) !important; cursor: not-allowed; color: #e2e8f0; }
+.btn-navy { background: var(--navy-m); }
+.btn-teal { background: var(--teal); }
+.btn-ghost {
+  background: transparent; border: 2px solid var(--terra);
+  color: var(--terra); flex: 0 0 auto; padding: 13px 16px;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--danger-l); filter: none; }
+.btn-sm { font-size: .82em; padding: 10px 14px; }
+
+/* DYNAMIC BUTTONS FOR DIFFICULTY */
+.btn-diff {
+  background: transparent; border: 2px solid var(--border);
+  color: var(--navy); padding: 10px 8px; border-radius: 8px;
+  font-weight: 700; font-size: 0.85em; cursor: pointer;
+  flex: 1; transition: 0.2s;
+}
+.btn-diff.selected { border-color: var(--terra); background: rgba(234, 88, 12, 0.1); color: var(--terra); }
+
+/* ── SECTION HEADERS ── */
+.sec-h { display: flex; align-items: center; gap: 9px; margin: 18px 0 12px; }
+.sec-h:first-child { margin-top: 0; }
+.sec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--terra); flex-shrink: 0; }
+.sec-h h3 { margin: 0; font-size: 1em; font-weight: 800; color: var(--navy); }
+.sec-h .sec-badge {
+  margin-left: auto; font-size: .72em; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+}
+
+/* ── CARDS ── */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.grid-1 { grid-template-columns: 1fr; }
+@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--card); border: 1.5px solid var(--border); padding: 13px;
+  border-radius: 10px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all .14s;
+}
+.card:hover:not(.disabled) { border-color: #94a3b8; box-shadow: 0 3px 8px rgba(0,0,0,0.09); }
+.card.selected { border-color: var(--teal); background: #f0f9ff; border-width: 2px; }
+.card.done { border-color: var(--green); background: #f0fdf4; border-width: 2px; }
+.card.disabled { opacity: .45; pointer-events: none; } 
+.card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+.card-t { font-size: .95em; font-weight: 800; color: var(--navy); line-height: 1.3; }
+.badge {
+  flex-shrink: 0; font-size: .68em; font-weight: 800; padding: 2px 7px;
+  border-radius: 10px; background: var(--teal); color: #fff; white-space: nowrap;
+}
+.badge-g { background: var(--green); }
+.badge-r { background: var(--danger); }
+.badge-gold { background: #92400e; }
+.card-note { font-size: .79em; color: var(--muted); font-weight: 600; line-height: 1.4; }
+.card-meta {
+  display: flex; justify-content: space-between; font-size: .83em;
+  font-weight: 800; color: var(--terra); padding-top: 7px;
+  border-top: 1px solid var(--border); margin-top: auto;
+}
+.card-meta .pos { color: var(--green); }
+
+/* ── FOOD SECTION ── */
+.food-wrap {
+  background: var(--card); border: 1.5px dashed #cbd5e1;
+  border-radius: 12px; padding: 14px; margin-bottom: 6px;
+}
+.food-wrap-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.food-wrap-h h3 { margin: 0; font-size: .96em; font-weight: 800; color: var(--navy); }
+
+/* ── ALERTS ── */
+.alert { padding: 10px 13px; border-radius: 8px; font-size: .82em; font-weight: 700; margin-bottom: 14px; line-height: 1.5; }
+.alert-warn { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.alert-info { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+.alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+/* ── START SCREEN ── */
+#s-start { overflow-y: auto; display: none; }
+#s-start.active { display: block; }
+.start-inner { padding: 24px; max-width: 480px; margin: 0 auto; }
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; font-weight: 800; margin-bottom: 7px; color: var(--navy); font-size: .92em; }
+.inp {
+  width: 100%; padding: 12px; font-size: 1em; border: 1.5px solid var(--border);
+  border-radius: 8px; font-weight: 600; background: var(--card);
+  transition: border-color .15s; outline: none;
+}
+.inp:focus { border-color: var(--teal); }
+input[type=range] { width: 100%; margin: 7px 0; accent-color: var(--terra); cursor: pointer; }
+.style-pill {
+  display: inline-block; padding: 4px 14px; border-radius: 20px;
+  font-size: .82em; font-weight: 800; background: var(--navy); color: #fff;
+  transition: background .2s;
+}
+
+/* ── RESULT SCREEN ── */
+#s-result { overflow-y: auto; display: none; }
+#s-result.active { display: block; }
+.result-inner { padding: 22px; max-width: 480px; margin: 0 auto; }
+.res-stat {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .92em;
+}
+.res-stat:last-child { border-bottom: none; }
+.res-box { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 14px; }
+
+/* ── MODAL ── */
+#overlay { display: none; position: absolute; inset: 0; background: rgba(15,23,42,.84); z-index: 100; }
+#modal {
+  display: none; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card); padding: 22px; border-radius: 16px;
+  width: min(88%, 380px); z-index: 101; text-align: center;
+  border: 2.5px solid var(--terra); box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+#modal h2 { color: var(--terra); margin: 0 0 9px; font-size: 1.1em; }
+#modal p { color: var(--muted); font-weight: 600; line-height: 1.5; font-size: .9em; margin: 0 0 18px; }
+#modal-btns { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── CITY PROGRESS ── */
+.city-progress { display: flex; gap: 5px; align-items: center; margin-bottom: 16px; }
+.city-pip {
+  flex: 1; height: 5px; border-radius: 3px; background: var(--border);
+  transition: background .3s;
+}
+.city-pip.done { background: var(--green); }
+.city-pip.current { background: var(--terra); }
+
+/* ── DIVIDER ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="s-start" class="screen active">
+<div class="start-inner">
+  <div style="margin-bottom:6px;font-size:.75em;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase">Turkey → Balkans → Turkey</div>
+  <h1 style="font-size:2em;color:var(--terra);margin:0 0 4px;font-weight:900">Balkan Express</h1>
+  <p style="font-size:.92em;color:var(--muted);font-weight:600;margin:0 0 16px">Visa-Free Adventure Simulation</p>
+
+  <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;padding:14px 16px;margin-bottom:18px;color:#fff;">
+    <div style="font-size:.78em;font-weight:800;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Your Mission</div>
+    <div style="font-size:.94em;font-weight:700;line-height:1.7;color:#e2e8f0;">
+      You are at Istanbul Airport. Your backpack is ready.<br>
+      You have <span style="color:#eab308;">20 days</span>, <span style="color:#34d399;">7 cities</span>, and <span style="color:#f87171;">a limited budget.</span><br>
+      An algorithm is simulating the same route in the background.<br>
+      <span style="color:#a78bfa;font-weight:900;">Who will travel smarter?</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info" id="diff-alert">
+    Choose the difficulty! The budget and target style will automatically adjust based on your choice. You can also change them manually.
+  </div>
+
+  <div class="form-group">
+    <label>Difficulty Level</label>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-diff selected" id="diff-easy" onclick="selectDiff('easy')">🟢 Easy</button>
+      <button class="btn-diff" id="diff-normal" onclick="selectDiff('normal')">🟡 Normal</button>
+      <button class="btn-diff" id="diff-hard" onclick="selectDiff('hard')">🔴 Hard</button>
+    </div>
+    <input type="hidden" id="inp-diff" value="easy">
+  </div>
+
+  <div class="form-group">
+    <label>Vacation Duration (Days)</label>
+    <input type="number" id="inp-days" class="inp" value="20" min="7" max="60" onchange="autoAdjustSetup()">
+  </div>
+  <div class="form-group">
+    <label>Starting Budget (€)</label>
+    <input type="number" id="inp-budget" class="inp" value="1500" min="200">
+  </div>
+  <div class="form-group">
+    <label>Target Travel Style</label>
+    <input type="range" id="inp-style" min="0" max="100" value="85" oninput="updateStyleLabel(this.value)">
+    <div style="text-align:center;margin-top:8px">
+      <span class="style-pill" id="style-pill">Luxury Adventurer (85)</span>
+    </div>
+  </div>
+
+  <button class="btn" onclick="startGame()" style="margin-top:6px;border-radius:10px;padding:15px">Start Adventure →</button>
+
+  <div style="margin-top:18px;font-size:.78em;color:var(--faint);line-height:1.7">
+    <strong style="color:var(--muted)">Route:</strong> Sarajevo · Belgrade · Kotor · Budva · Tirana · Skopje · Pristina<br>
+  </div>
+</div>
+</div>
+
+<div id="s-game" class="screen">
+
+  <div class="hud">
+    <div class="hud-top">
+      <span class="hud-city" id="hud-city">Preparing...</span>
+      <span class="hud-xp" id="hud-xp">⭐ 0 XP</span>
+    </div>
+    <div class="hud-stats">
+      <div class="stat-box" id="box-hunger" style="background:var(--terra)">
+        <span class="lbl">Hunger</span>
+        <span class="val" id="val-hunger">100%</span>
+      </div>
+      <div class="stat-box" id="box-energy" style="background:var(--green)">
+        <span class="lbl">Energy</span>
+        <span class="val" id="val-energy">100%</span>
+      </div>
+      <div class="stat-box" id="box-happy" style="background:var(--teal)">
+        <span class="lbl">Happiness</span>
+        <span class="val" id="val-happy">100%</span>
+      </div>
+    </div>
+    <div class="hud-bar">
+      <span>💰 <strong id="hud-budget">0</strong>€</span>
+      <span>🕒 <strong id="hud-hours">16.0</strong>h left</span>
+      <span>📅 Day <strong id="hud-day">1/20</strong></span>
+    </div>
+    <div class="log-bar" id="log-bar">Game is starting…</div>
+    <div id="bot-hud" style="background:#0f172a;border-top:1px solid rgba(255,255,255,0.06);padding:6px 18px;display:flex;justify-content:space-between;align-items:center;font-size:.78em;font-weight:700;">
+      <span style="color:#94a3b8;">🤖 ALGORITHM</span>
+      <span id="bot-xp" style="color:#a78bfa;">⭐ 0 XP</span>
+      <span id="bot-budget" style="color:#34d399;">💰 0€</span>
+      <span id="bot-verdict" style="color:#fbbf24;">Computing GAMSPy Model…</span>
+    </div>
+  </div>
+
+  <div class="scroll" id="scroll">
+
+    <div id="pan-setup" style="display:none">
+      <div class="sec-h"><div class="sec-dot" style="background:var(--teal)"></div><h3>Choose Flight Ticket</h3></div>
+      <div class="grid grid-1" id="flight-list"></div>
+
+      <div id="internet-wrap" style="display:none;margin-top:4px">
+        <hr class="divider">
+        <div class="sec-h"><div class="sec-dot" style="background:var(--green)"></div><h3>Internet Package</h3></div>
+        <div class="alert alert-info" style="margin-bottom:12px">Being without internet adds +1 hour to every activity!</div>
+        <div class="grid grid-1" id="internet-list"></div>
+      </div>
+    </div>
+
+    <div id="pan-city" style="display:none">
+
+      <div id="city-progress-wrap" style="margin-bottom:14px">
+        <div style="font-size:.72em;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px" id="city-prog-label">City 1 / 7</div>
+        <div class="city-progress" id="city-pips"></div>
+      </div>
+
+      <div id="wrap-acc">
+        <div class="sec-h">
+          <div class="sec-dot"></div>
+          <h3 id="acc-title">Where Will You Stay?</h3>
+        </div>
+        <div class="grid" id="acc-list"></div>
+      </div>
+
+      <div id="wrap-trans" style="display:none">
+        <hr class="divider">
+        <div class="sec-h">
+          <div class="sec-dot" style="background:var(--teal)"></div>
+          <h3>City Transport</h3>
+          <span class="sec-badge" id="trans-info">One-time choice</span>
+        </div>
+        <div class="grid" id="trans-list"></div>
+      </div>
+
+      <div id="wrap-free" style="display:none">
+        <hr class="divider">
+
+        <div class="food-wrap">
+          <div class="food-wrap-h">
+            <h3>Food / Drinks</h3>
+            <span style="font-size:.8em;font-weight:800;color:var(--muted)">Meals: <span id="lbl-meals" style="color:var(--navy-m)">0/3</span></span>
+          </div>
+          <div class="grid" id="food-list"></div>
+        </div>
+
+        <div class="sec-h" style="margin-top:14px">
+          <div class="sec-dot" style="background:var(--green)"></div>
+          <h3>City Activities</h3>
+          <span class="sec-badge" id="acts-info">Multiple choices allowed</span>
+        </div>
+        <div class="grid" id="act-list"></div>
+      </div>
+    </div>
+
+    <div id="pan-travel" style="display:none">
+      <div class="sec-h">
+        <div class="sec-dot" style="background:var(--teal)"></div>
+        <h3 id="travel-title">Travel to Next City</h3>
+      </div>
+      <div class="alert alert-warn" id="travel-alert">Border crossings drain energy and happiness. Choose the best for your budget!</div>
+      <div class="grid grid-1" id="travel-list"></div>
+    </div>
+
+  </div><div class="footer" id="footer" style="display:none">
+    <button class="btn btn-ghost btn-sm" id="btn-cancel" onclick="cancelTravel()" style="display:none">← Back</button>
+    <button class="btn btn-teal btn-sm" id="btn-travel" onclick="showTravelPanel()" style="display:none">🚌 Leave City</button>
+    <button class="btn btn-navy btn-sm" id="btn-endday" onclick="endDay()" disabled>🌙 End Day</button>
+  </div>
+
+</div><div id="s-result" class="screen">
+<div class="result-inner">
+  <div style="text-align:center;margin-bottom:16px">
+    <div style="font-size:2.8em" id="res-icon">🏁</div>
+    <h1 style="font-size:1.7em;margin:6px 0 4px;color:var(--navy)" id="res-title">Tour Completed!</h1>
+    <div id="res-reason" style="font-size:.88em;font-weight:700;color:var(--danger)"></div>
+  </div>
+
+  <div class="res-box">
+    <div class="res-stat"><span>Total XP</span><strong style="color:var(--terra);font-size:1.3em" id="res-xp">0</strong></div>
+    <div class="res-stat"><span>Remaining Budget</span><strong id="res-budget">-</strong></div>
+    <div class="res-stat"><span>Days Completed</span><strong id="res-days">-</strong></div>
+    <div class="res-stat"><span>Cities Visited</span><strong id="res-cities">-</strong></div>
+    <div class="res-stat"><span>Difficulty Level</span><strong id="res-diff">-</strong></div>
+  </div>
+
+  <div class="res-box">
+    <div style="font-size:.75em;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Travel Style Analysis</div>
+    <div class="res-stat"><span>Target Style</span><strong id="res-target">-</strong></div>
+    <div class="res-stat"><span>Actual Style</span><strong id="res-actual">-</strong></div>
+    <div class="res-stat"><span>Character Match</span><strong style="color:var(--teal);font-size:1.1em" id="res-accuracy">%0</strong></div>
+  </div>
+
+  <div id="algo-compare-box" style="border:2.5px solid #7c3aed;border-radius:14px;overflow:hidden;margin-bottom:16px;">
+    <div style="background:#4c1d95;padding:10px 14px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:1.1em;">🤖</span>
+      <span style="font-weight:900;color:#fff;font-size:.95em;">GAMSPy Optimization Model</span>
+      <span id="algo-winner-badge" style="margin-left:auto;font-size:.72em;font-weight:800;padding:3px 10px;border-radius:10px;background:#7c3aed;color:#fff;"></span>
+    </div>
+    <div style="padding:14px;background:#faf5ff;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;border:1.5px solid #e9d5ff;">
+          <div style="font-size:.65em;font-weight:700;letter-spacing:1px;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">You (Intuition)</div>
+          <div style="font-size:1.3em;font-weight:900;color:#1e293b;" id="cmp-sen-xp">— XP</div>
+          <div style="font-size:.8em;font-weight:700;color:#059669;" id="cmp-sen-budget">—€ spent</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;border:1.5px solid #a78bfa;">
+          <div style="font-size:.65em;font-weight:700;letter-spacing:1px;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Algorithm (MIP)</div>
+          <div style="font-size:1.3em;font-weight:900;color:#1e293b;" id="cmp-algo-xp">— XP</div>
+          <div style="font-size:.8em;font-weight:700;color:#059669;" id="cmp-algo-budget">—€ would spend</div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;border:1.5px solid #e9d5ff;margin-bottom:10px;">
+        <div style="font-size:.72em;font-weight:700;color:#7c3aed;margin-bottom:6px;">🗺️ MATHEMATICAL MODEL INSIGHT</div>
+        <div id="algo-route-detail" style="font-size:.82em;color:#1e293b;line-height:1.9;font-weight:600;"></div>
+      </div>
+      <div id="algo-insight" style="background:#ede9fe;border-radius:8px;padding:9px 12px;font-size:.8em;color:#5b21b6;font-weight:700;line-height:1.5;"></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:16px;background:var(--card);border-radius:12px;border:1.5px solid var(--border);margin-bottom:18px">
+    <div style="font-size:1.8em;margin-bottom:6px" id="res-rank-icon">🎭</div>
+    <div style="font-size:1.05em;font-weight:900;color:var(--navy-m)" id="res-rank">-</div>
+  </div>
+
+  <button class="btn" onclick="location.reload()" style="border-radius:10px;padding:14px">🔄 Play Again</button>
+</div>
+</div>
+
+<div id="overlay" onclick=""></div>
+<div id="modal">
+  <h2 id="modal-title">Event!</h2>
+  <p id="modal-desc">...</p>
+  <div id="modal-btns"></div>
+</div>
+
+</div><script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+// ──────────────────────────────────────────
+// UI HELPERS (Difficulty)
+// ──────────────────────────────────────────
+function selectDiff(lvl) {
+  ['easy', 'normal', 'hard'].forEach(l => $('diff-' + l).classList.remove('selected'));
+  $('diff-' + lvl).classList.add('selected');
+  $('inp-diff').value = lvl;
+  autoAdjustSetup();
+}
+
+function autoAdjustSetup() {
+  const lvl = $('inp-diff').value;
+  const days = parseInt($('inp-days').value) || 20;
+  let budget, style;
+
+  if (lvl === 'hard') {
+    budget = days * 25; // 25€ / day average
+    style = 15;         // Full Backpacker
+  } else if (lvl === 'normal') {
+    budget = days * 45; // 45€ / day average
+    style = 50;         // Tourist
+  } else { // easy
+    budget = days * 80; // 80€ / day average
+    style = 85;         // Luxury Adventurer
+  }
+
+  $('inp-budget').value = budget;
+  $('inp-style').value = style;
+  updateStyleLabel(style);
+}
+
+function getDiffMod() {
+  const mods = {
+    'easy':   { drainMult: 1,   overnightHunger: -20, overeatPenalty: -20, eventChance: 0.20, pMult: 1   },
+    'normal': { drainMult: 1.5, overnightHunger: -35, overeatPenalty: -35, eventChance: 0.30, pMult: 1.5 },
+    'hard':   { drainMult: 2,   overnightHunger: -50, overeatPenalty: -50, eventChance: 0.40, pMult: 2   }
+  };
+  return mods[G.difficulty] || mods['easy'];
+}
+
+function updateStyleLabel(val) {
+  val = parseInt(val);
+  let text, color;
+  if (val <= 33)      { text = `Full Backpacker (${val})`;     color = 'var(--navy)'; }
+  else if (val <= 66) { text = `Average Tourist (${val})`;  color = 'var(--terra)'; }
+  else                { text = `Luxury Adventurer (${val})`;  color = 'var(--green)'; }
+  const el = $('style-pill');
+  el.textContent = text;
+  el.style.background = color;
+}
+
+// ──────────────────────────────────────────
+// GAME DATA
+// ──────────────────────────────────────────
+const AIRLINES = [
+  {name:'Pegasus (SAW)', cost:85,  xp:10,  time:1.5, note:'Economical and fast.'},
+  {name:'AJet (SAW)',    cost:70,  xp:-5,  time:2.0, note:'Cheap but tiring layover.'},
+  {name:'SunExpress',    cost:95,  xp:15,  time:1.8, note:'Extra legroom.'},
+  {name:'Air Serbia',    cost:120, xp:30,  time:1.5, note:'Comfortable and direct.'},
+  {name:'Turkish Airlines (IST)', cost:190, xp:60,  time:1.5, note:'Full comfort, airport shuttle.'}
+];
+
+const INTERNET = [
+  {id:'roam',  name:'Carrier Roaming', cost:50, time:0,  xp:30,  note:'Keeps your current line, super luxury.'},
+  {id:'esim',  name:'eSIM Package',      cost:35, time:0,  xp:20,  note:'Setup on the plane, zero wait.'},
+  {id:'wifi',  name:'Portable Wi-Fi',cost:25, time:1,  xp:15,  note:'Short line at the rental desk.'},
+  {id:'local', name:'Local SIM',        cost:15, time:2,  xp:10,  note:'Wait 2 hours in line at the store.'},
+  {id:'none',  name:'No Internet',      cost:0,  time:0,  xp:-50, note:'+1h travel loss per activity!'}
+];
+
+const CITIES = [
+  {name:'Sarajevo', country:'Bosnia & Herzegovina',
+    acc:[
+      {id:'sa0', name:'Hostel Vagabond',    cost:12,  xp:95,  e:55, m:10, note:'Central, bunk beds, youthful vibe.'},
+      {id:'sa1', name:'Hostel Kucha',       cost:8,   xp:80,  e:45, m:5,  note:'Cheap but uphill.'},
+      {id:'sa2', name:'Balkan Han Hostel',  cost:14,  xp:100, e:50, m:20, note:'Lively garden.'},
+      {id:'sa3', name:'FG Boutique Hostel', cost:18,  xp:110, e:60, m:15, note:'Capsule beds, quiet.'},
+      {id:'sa4', name:'Central Airbnb',     cost:35,  xp:110, e:80, m:25, note:'Fully equipped apartment.'},
+      {id:'sa5', name:'Hotel Europe (Luxury)',cost:85,xp:130, e:100,m:40, note:'Includes SPA & Turkish bath.'}
+    ],
+    activities:[
+      {name:'Baščaršija Free Walking Tour', cost:0,  time:2, xp:30},
+      {name:'Sebilj & Feeding Pigeons',     cost:2,  time:1, xp:15},
+      {name:'Latin Bridge Visit',           cost:0,  time:1, xp:25},
+      {name:'Gazi Husrev-beg Mosque',       cost:2,  time:1, xp:25},
+      {name:'Tunnel of Hope Museum',        cost:10, time:3, xp:50},
+      {name:'Svrzo\'s House',               cost:5,  time:2, xp:35},
+      {name:'Trebević Cable Car',           cost:12, time:3, xp:60},
+      {name:'Yellow Fortress Sunset',       cost:0,  time:2, xp:45}
+    ],
+    travel:[
+      {name:'FlixBus',             cost:15, time:8,   xp:5,  e:-25, m:-15, note:'Very cheap but crowded.'},
+      {name:'Centrotrans Bus',     cost:25, time:7,   xp:10, e:-20, m:-10, note:'Economical but long.'},
+      {name:'BlaBlaCar (Shared)',  cost:20, time:6,   xp:15, e:-15, m:-5,  note:'Fun if you are lucky.'},
+      {name:'Train (Scenic)',      cost:35, time:5,   xp:25, e:-10, m:10,  note:'Great mountain views.'},
+      {name:'VIP Transfer',        cost:60, time:4.5, xp:30, e:-5,  m:15,  note:'Comfortable and fast.'}
+    ]},
+  {name:'Belgrade', country:'Serbia',
+    acc:[
+      {id:'be0', name:'Sun Hostel',             cost:7,   xp:80,  e:40, m:5,  note:'Cheapest option.'},
+      {id:'be1', name:'Up Hostel',              cost:10,  xp:92,  e:55, m:10, note:'Balanced, clean, good location.'},
+      {id:'be2', name:'Good People Design',     cost:15,  xp:105, e:65, m:15, note:'Modern and stylish.'},
+      {id:'be3', name:'Airbnb in Historic Neighborhood',cost:40, xp:115, e:85, m:25, note:'Skadarlija spirit.'},
+      {id:'be4', name:'Courtyard Marriott',     cost:90,  xp:130, e:95, m:35, note:'International standard.'},
+      {id:'be5', name:'Hotel Moskva',           cost:110, xp:150, e:100,m:45, note:'Iconic since 1906.'}
+    ],
+    activities:[
+      {name:'Republic Square & Knez Mihailova',    cost:0,  time:2, xp:30},
+      {name:'Kalemegdan Fortress',                 cost:0,  time:3, xp:45},
+      {name:'Temple of Saint Sava',                cost:0,  time:2, xp:35},
+      {name:'Nikola Tesla Museum',                 cost:8,  time:2, xp:60},
+      {name:'Zemun Walk',                          cost:5,  time:3, xp:50},
+      {name:'Ada Ciganlija Bike Rental',           cost:10, time:4, xp:55},
+      {name:'Skadarlija Live Music',               cost:15, time:3, xp:70},
+      {name:'Splav River Party',                   cost:35, time:5, xp:85}
+    ],
+    travel:[
+      {name:'Night Bus',           cost:30, time:11,  xp:10, e:-30, m:-20, note:'Guaranteed sleep loss.'},
+      {name:'Day Express Bus',     cost:35, time:9,   xp:15, e:-20, m:-10, note:'Less tiring.'},
+      {name:'Private Minibus Transfer',cost:55, time:7,  xp:25, e:-10, m:5,   note:'Door to door.'},
+      {name:'Air Serbia Flight',   cost:85, time:2.5, xp:40, e:-5,  m:20,  note:'Fast and comfortable.'}
+    ]},
+  {name:'Kotor', country:'Montenegro',
+    acc:[
+      {id:'ko0', name:'Pansion Kova',       cost:12,  xp:85,  e:50, m:5,  note:'Old but cute.'},
+      {id:'ko1', name:'Hostel Cent',        cost:15,  xp:90,  e:55, m:10, note:'Affordable and clean.'},
+      {id:'ko2', name:'Old Town Hostel',    cost:19,  xp:98,  e:60, m:15, note:'Inside UNESCO walls.'},
+      {id:'ko3', name:'Scenic Airbnb',      cost:60,  xp:140, e:90, m:35, note:'Bay view terrace.'},
+      {id:'ko4', name:'Boutique Hotel Astoria',cost:110,xp:160,e:95, m:40, note:'Luxury in historic texture.'},
+      {id:'ko5', name:'Forza Mare (Luxury)',cost:150, xp:180, e:100,m:50, note:'5 stars, private beach.'}
+    ],
+    activities:[
+      {name:'Old Town (Stari Grad) Exploration', cost:0,  time:2, xp:35},
+      {name:'Cats Museum',                   cost:2,  time:1, xp:15},
+      {name:'San Giovanni Fortress (Lower Part)',cost:0, time:2, xp:40},
+      {name:'City Walls & St. John Fortress (Peak)',cost:15, time:3, xp:75},
+      {name:'Perast Trip & Our Lady of the Rocks',cost:20, time:4, xp:65},
+      {name:'Bay Boat Tour',                 cost:40, time:5, xp:90},
+      {name:'Blue Cave Swimming Tour',       cost:50, time:4, xp:95}
+    ],
+    travel:[
+      {name:'Hiking Trail (Tough)',  cost:0,   time:4,  xp:20, e:-30, m:-10, note:'Free but very tiring.'},
+      {name:'Local Bus (Budva)',     cost:3.5, time:1,  xp:5,  e:-10, m:-5,  note:'Frequent rides, cheap.'},
+      {name:'BlaBlaCar',             cost:10,  time:0.5,xp:10, e:-5,  m:5,   note:'Fast and social.'},
+      {name:'Red Taxi (Budva)',      cost:25,  time:0.3,xp:20, e:0,   m:15,  note:'Instant, comfortable.'}
+    ]},
+  {name:'Budva', country:'Montenegro',
+    acc:[
+      {id:'bu0', name:'High Hostel',        cost:14,  xp:88,  e:45, m:5,  note:'Uphill but scenic.'},
+      {id:'bu1', name:'Newborn Hostel',     cost:18,  xp:92,  e:55, m:10, note:'Close to center and bus station.'},
+      {id:'bu2', name:'Freedom Hostel',     cost:21,  xp:98,  e:60, m:15, note:'Inside old town.'},
+      {id:'bu3', name:'Beachside Airbnb',   cost:50,  xp:125, e:85, m:30, note:'Walking distance to the sea.'},
+      {id:'bu4', name:'Avala Resort',       cost:120, xp:160, e:95, m:40, note:'Iconic infinity pool.'},
+      {id:'bu5', name:'Splendid Resort',    cost:180, xp:200, e:100,m:50, note:'Private beach & casino.'}
+    ],
+    activities:[
+      {name:'Beach Walk',                  cost:0,  time:2, xp:25},
+      {name:'Old Town Streets',            cost:0,  time:2, xp:35},
+      {name:'Dancing Girl Statue',         cost:0,  time:1, xp:20},
+      {name:'Mogren Beach',                cost:15, time:4, xp:55},
+      {name:'Hawaii Island Boat',          cost:10, time:3, xp:45},
+      {name:'Sveti Stefan Island Tour',    cost:20, time:3, xp:65},
+      {name:'Kayak Rental',                cost:25, time:2, xp:50},
+      {name:'Top Hill Nightclub',          cost:50, time:5, xp:100}
+    ],
+    travel:[
+      {name:'Local Bus (Tirana)',     cost:28, time:7, xp:10, e:-25, m:-15, note:'Long but economical.'},
+      {name:'Minibus Shuttle',        cost:18, time:5, xp:8,  e:-20, m:-10, note:'Slightly faster.'},
+      {name:'VIP VIP Transfer',       cost:50, time:4, xp:20, e:-5,  m:10,  note:'Very comfortable.'}
+    ]},
+  {name:'Tirana', country:'Albania',
+    acc:[
+      {id:'ti0', name:'Tirana Backpacker',  cost:9,   xp:85,  e:45, m:10, note:'For party lovers.'},
+      {id:'ti1', name:"Trip'n'Hostel",      cost:10,  xp:93,  e:55, m:15, note:'Backpacker friendly, quiet.'},
+      {id:'ti2', name:'Blue Door Hostel',   cost:14,  xp:98,  e:60, m:18, note:'Very clean and central.'},
+      {id:'ti3', name:'Modern Airbnb (Blloku)',cost:30, xp:105, e:75, m:25, note:'Old Enver Hoxha neighborhood.'},
+      {id:'ti4', name:'Rogner Hotel',       cost:90,  xp:140, e:95, m:35, note:'Large garden.'},
+      {id:'ti5', name:'Maritim Plaza',      cost:130, xp:160, e:100,m:45, note:'Luxury in the city center.'}
+    ],
+    activities:[
+      {name:'Skanderbeg Square',           cost:0,  time:1, xp:25},
+      {name:'Et\'hem Bey Mosque',          cost:0,  time:1, xp:20},
+      {name:'Pyramid Climb',               cost:0,  time:1, xp:30},
+      {name:'National History Museum',     cost:5,  time:2, xp:40},
+      {name:"Bunk'Art 1 – Nuclear Bunker", cost:7,  time:3, xp:65},
+      {name:'Mount Dajti Cable Car',       cost:12, time:3, xp:55},
+      {name:'Blloku Nightlife',            cost:25, time:4, xp:60}
+    ],
+    travel:[
+      {name:'Day Bus (Skopje)',       cost:25, time:6, xp:10, e:-30, m:-10, note:'Scenic mountain pass.'},
+      {name:'Night Bus (Skopje)',     cost:20, time:7, xp:5,  e:-45, m:-25, note:'Cheap but little sleep.'}
+    ]},
+  {name:'Skopje', country:'N. Macedonia',
+    acc:[
+      {id:'us0', name:'Shanti Hostel',      cost:8,   xp:85,  e:45, m:5,  note:'Close to the bus station.'},
+      {id:'us1', name:'Get Inn Skopje',     cost:9.5, xp:92,  e:55, m:10, note:'Walking distance to the square.'},
+      {id:'us2', name:'Unity Hostel',       cost:12,  xp:95,  e:60, m:15, note:'Comfortable and quiet.'},
+      {id:'us3', name:'Central Airbnb',     cost:25,  xp:100, e:80, m:25, note:'Statue forest view.'},
+      {id:'us4', name:'Alexandar II Hotel', cost:90,  xp:130, e:95, m:35, note:'Best location in the city.'},
+      {id:'us5', name:'Skopje Marriott',    cost:140, xp:170, e:100,m:50, note:'Ultra luxury in the heart of the square.'}
+    ],
+    activities:[
+      {name:'Macedonia Square & Statues',   cost:0,  time:1, xp:25},
+      {name:'Photo on the Stone Bridge',    cost:0,  time:1, xp:20},
+      {name:'Old Bazaar & Kapan Han',       cost:0,  time:3, xp:45},
+      {name:'Archaeological Museum',        cost:5,  time:2, xp:35},
+      {name:'Vardar River Boat Tour',       cost:10, time:1, xp:30},
+      {name:'Millennium Cross',             cost:8,  time:3, xp:55},
+      {name:'Matka Canyon & Cave',          cost:20, time:6, xp:85}
+    ],
+    travel:[
+      {name:'Bus (Pristina)',          cost:7,  time:2.5, xp:5,  e:-10, m:-5,  note:'Frequent rides, cheap.'},
+      {name:'BlaBlaCar',               cost:15, time:1.5, xp:15, e:-5,  m:5,   note:'Comfortable.'},
+      {name:'VIP Minibus (Pristina)',  cost:40, time:1.5, xp:25, e:0,   m:15,  note:'Fast and comfortable.'}
+    ]},
+  {name:'Pristina', country:'Kosovo',
+    acc:[
+      {id:'pr0', name:'Buffalo Backpackers',cost:10,  xp:88,  e:45, m:10, note:'Has a quiet garden.'},
+      {id:'pr1', name:'Han Hostel',         cost:11,  xp:92,  e:55, m:15, note:'In the old town.'},
+      {id:'pr2', name:'Oda Hostel',         cost:12,  xp:96,  e:60, m:20, note:'Highest rated hostel.'},
+      {id:'pr3', name:'Luxury Airbnb',      cost:35,  xp:110, e:85, m:30, note:'Modern central apartment.'},
+      {id:'pr4', name:'Emerald Hotel',      cost:90,  xp:140, e:95, m:40, note:'Has a large pool.'},
+      {id:'pr5', name:'Swiss Diamond Hotel',cost:160, xp:220, e:100,m:50, note:'Most luxurious hotel in the Balkans.'}
+    ],
+    activities:[
+      {name:'NEWBORN Monument & Surroundings',cost:0,  time:1, xp:20},
+      {name:'National Library (Interesting Architecture)',cost:0, time:1, xp:20},
+      {name:'Mother Teresa Boulevard',      cost:0,  time:2, xp:30},
+      {name:'Ethnographic Museum',          cost:3,  time:2, xp:35},
+      {name:'Germia Park Hike',             cost:5,  time:3, xp:40},
+      {name:'Bear Sanctuary Prishtina',     cost:10, time:4, xp:65},
+      {name:'Nuk Nightclub',                cost:30, time:4, xp:70}
+    ],
+    travel:[
+      {name:'Pegasus – Return Home', cost:85,  time:1.5, xp:15, e:-10, m:0,  note:'Economical ending.', isEnd:true},
+      {name:'SunExpress – Return Home', cost:95,  time:1.8, xp:25, e:-5, m:10, note:'Direct flight.', isEnd:true},
+      {name:'THY – Return Home',      cost:185, time:1.5, xp:60, e:0,  m:25, note:'Comfortable ending.', isEnd:true}
+    ]}
+];
+const FOOD = [
+  {name:'Bakery / Patisserie',     icon:'🥐', cost:3,  time:0.5, hunger:20, energy:5,  happy:5,   isMeal:true},
+  {name:'Fast Food / Street Food', icon:'🍔', cost:6,  time:0.5, hunger:35, energy:0,  happy:-5,  isMeal:true},
+  {name:'Local Diner',             icon:'🍲', cost:12, time:1.0, hunger:50, energy:5,  happy:10,  isMeal:true},
+  {name:'Tourist Restaurant',      icon:'🍽️', cost:20, time:1.5, hunger:60, energy:5,  happy:20,  isMeal:true},
+  {name:'Luxury Dinner',           icon:'🍷', cost:45, time:2.0, hunger:85, energy:10, happy:35,  isMeal:true},
+  {name:'Coffee & Dessert',        icon:'☕', cost:6,  time:1.0, hunger:5,  energy:30, happy:15,  isMeal:false},
+  {name:'Grocery Shopping',        icon:'🛒', cost:8,  time:1.0, hunger:40, energy:5,  happy:0,   isMeal:true}
+];
+const EVENTS = [
+  {type:'info', icon:'💸', title:'Thief!',
+    desc:'Money was stolen from your wallet in the crowd. Should\'ve been careful!',
+    fn:()=>{ let p = 15 * getDiffMod().pMult; spend(p); mod('happy',-10 * getDiffMod().pMult); setLog(`Thief snatched ${p}€!`); }},
+  {type:'info', icon:'🤢', title:'Slight Illness',
+    desc:'Unknown street food upset your stomach slightly.',
+    fn:()=>{ let m = getDiffMod().pMult; mod('energy',-15*m); mod('happy',-10*m); setLog('Stomach slightly upset!'); }},
+  {type:'info', icon:'🌧️', title:'Sudden Rain',
+    desc:'You got soaked. Demoralizing.',
+    fn:()=>{ let m = getDiffMod().pMult; mod('energy',-10*m); mod('happy',-15*m); setLog('Got wet in the rain.'); }},
+  {type:'info', icon:'🫓', title:'Local Hospitality',
+    desc:'A local lady offered you borek. Such nice people!',
+    fn:()=>{ mod('hunger',25); mod('happy',20); setLog('Borek treat!'); }},
+  {type:'info', icon:'🍻', title:'New Friend',
+    desc:'Someone at the hostel bought you a drink.',
+    fn:()=>{ mod('happy',15); mod('energy',10); setLog('Free drink!'); }},
+  {type:'info', icon:'💰', title:'Found Money!',
+    desc:'Found 20€ on the sidewalk.',
+    fn:()=>{ G.budget+=20; mod('happy', 10); setLog('Found +20€!'); }},
+  {type:'info', icon:'📸', title:'Perfect Photo!',
+    desc:'The photo you took came out great. Burst of happiness!',
+    fn:()=>{ mod('happy',15); G.xp+=25; setLog('+25 XP, happiness increased!'); }},
+  {type:'info', icon:'🎫', title:'Discount!',
+    desc:'You were chosen as the lucky tourist of the day, museum ticket came free!',
+    fn:()=>{ G.budget+=10; mod('happy',20); setLog('10€ refunded!'); }},
+  {type:'dilemma', icon:'👛', title:'Lost Wallet',
+    desc:'You found a full wallet on the ground. What will you do?',
+    choices:[
+      {label:'✅ Take to Police Station (−1.5h, +80 XP)',
+       fn:()=>{ G.hours-=1.5; G.xp+=80; mod('happy',20); setLog('+80 XP from the station!'); }},
+      {label:'❌ Ignore it (−10 XP)',
+       fn:()=>{ G.xp-=10; mod('happy',-5); setLog('Your conscience stung a bit…'); }}
+    ]},
+  {type:'dilemma', icon:'🚌', title:'Ticket Check!',
+    desc:'You didn\'t stamp your ticket on the bus and the inspector arrived!',
+    choices:[
+      {label:'💳 Pay Fine',
+       fn:()=>{ let p = 15 * getDiffMod().pMult; spend(p); mod('happy',-10 * getDiffMod().pMult); setLog(`${p}€ fine paid.`); }},
+      {label:'🏃 Run and Walk (−2h, −energy)',
+       fn:()=>{ let m = getDiffMod().pMult; G.hours-=2; mod('energy',-15*m); mod('hunger',-10*m); setLog('Escaped but got tired!'); }}
+    ]}
+];
+
+// ──────────────────────────────────────────
+// GAME STATE
+// ──────────────────────────────────────────
+let G = {};
+let gameEnded = false;
+let BOT = { log: [] };
+
+function initGame(days, budget, style, difficulty) {
+  gameEnded = false;
+  G = {
+    budget, totalDays:days, targetStyle:style, difficulty: difficulty,
+    spent:0, currentDay:1, hours:16,
+    xp:0, cityIdx:0, daysInCity:0,
+    hunger:100, energy:100, happy:100,
+    mealsToday:0, internet:null,
+    accSelected:null, transSelected:false,
+    actsCompleted:[],
+    playerLog: [],
+  };
+  // Yeni Python GAMSPy Backend'ine Bağlan
+  runGAMSPySimulation(budget);
+}
+
+// ──────────────────────────────────────────
+// YENİ ALGORİTMA: PYTHON GAMSPY BAĞLANTISI
+// ──────────────────────────────────────────
+async function runGAMSPySimulation(startingBudget) {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/optimize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ budget: startingBudget })
+    });
+
+    const data = await response.json();
+
+    // API'den dönen optimum sonuçları globale kaydet
+    BOT = {
+      xp: data.algo_xp || 0,
+      spent: data.algo_spent || 0,
+      remaining: startingBudget - (data.algo_spent || 0),
+      choices: data.algo_choices || [],
+      log: [] // Şimdilik logları boş tutuyoruz
+    };
+
+    updateBotHUD();
+
+  } catch (error) {
+    console.error("GAMSPy Backend'ine ulaşılamadı!", error);
+    BOT = { xp: 0, spent: 0, remaining: 0, choices: [], log: [] };
+    if($('bot-verdict')) $('bot-verdict').textContent = "Server Offline!";
+  }
+}
+
+function getDiffModFor(difficulty) {
+  if (difficulty === 'hard')   return { drainMult:1.5, eventChance:.45, pMult:1.5, overnightHunger:-20, overeatPenalty:-25 };
+  if (difficulty === 'normal') return { drainMult:1.0, eventChance:.30, pMult:1.0, overnightHunger:-15, overeatPenalty:-15 };
+  return                              { drainMult:0.7, eventChance:.20, pMult:0.7, overnightHunger:-10, overeatPenalty:-10 };
+}
+
+function updateBotHUD() {
+  if (!$('bot-xp')) return;
+  $('bot-xp').textContent  = '⭐ ' + BOT.xp + ' XP';
+  $('bot-budget').textContent = '💰 ' + BOT.remaining + '€ left';
+  const ahead = G.xp > BOT.xp ? '✅ You are ahead!' : G.xp === BOT.xp ? '🤝 Tie' : '🤖 GAMSPy is ahead';
+  $('bot-verdict').textContent = ahead;
+  $('bot-verdict').style.color = G.xp >= BOT.xp ? '#4ade80' : '#fbbf24';
+}
+
+function setLog(msg) { $('log-bar').textContent = msg; }
+function spend(n) { G.budget -= n; G.spent += Math.max(0, n); }
+function mod(stat, val) { G[stat] = Math.min(100, Math.max(0, G[stat] + val)); }
+function r(n) { return Math.round(n); }
+function extraTime() { return G.internet === 'none' ? 1 : 0; }
+
+function setScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function scrollTop() { $('scroll').scrollTo({top:0, behavior:'smooth'}); }
+function scrollTo(el) { if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }
+
+function showPanel(id) {
+  ['pan-setup','pan-city','pan-travel'].forEach(p => $(p).style.display = 'none');
+  $(id).style.display = 'block';
+  scrollTop();
+}
+
+function disableGrid(gridId, keepEl) {
+  document.querySelectorAll(`#${gridId} .card`).forEach(c => {
+    c.classList.add('disabled');
+    c.onclick = null;
+  });
+  if (keepEl) {
+    keepEl.classList.remove('disabled');
+    keepEl.classList.add('selected');
+  }
+}
+
+function updateHUD() {
+  if (gameEnded) return;
+
+  const {hunger, energy, happy, budget} = G;
+
+  $('box-hunger').style.background = hunger < 30 ? 'var(--danger)' : 'var(--terra)';
+  $('box-energy').style.background = energy < 30 ? 'var(--danger)' : 'var(--green)';
+  $('box-happy').style.background  = happy  < 30 ? 'var(--danger)' : 'var(--teal)';
+
+  $('val-hunger').textContent = r(hunger) + '%';
+  $('val-energy').textContent = r(energy) + '%';
+  $('val-happy').textContent  = r(happy)  + '%';
+  $('hud-budget').textContent = r(budget);
+  $('hud-hours').textContent  = G.hours.toFixed(1);
+  $('hud-day').textContent    = Math.min(G.currentDay, G.totalDays) + '/' + G.totalDays;
+  $('hud-xp').textContent     = '⭐ ' + G.xp + ' XP';
+  $('lbl-meals').textContent  = G.mealsToday + '/3';
+  $('lbl-meals').style.color  = G.mealsToday >= 3 ? 'var(--danger)' : 'var(--navy-m)';
+
+  $('hud-budget').parentElement.className =
+    budget < 150 ? 'hud-bar danger-val' : 'hud-bar';
+
+  if (budget < -5)   { endGame('💸 You went bankrupt! Your budget is depleted.'); return; }
+  if (hunger <= 0)   { endGame('😵 You passed out from hunger!'); return; }
+  if (energy <= 0)   { endGame('😴 You collapsed from exhaustion!'); return; }
+  if (happy <= 0)    { endGame('😢 You fell into depression!'); return; }
+  updateBotHUD();
+}
+
+function updateCityProgress() {
+  $('city-prog-label').textContent =
+    `${CITIES[G.cityIdx].name} — ${G.cityIdx+1}/${CITIES.length}`;
+  const pips = $('city-pips');
+  pips.innerHTML = '';
+  CITIES.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'city-pip' + (i < G.cityIdx ? ' done' : i === G.cityIdx ? ' current' : '');
+    pips.appendChild(d);
+  });
+}
+
+function startGame() {
+  const days   = parseInt($('inp-days').value)   || 20;
+  const budget = parseFloat($('inp-budget').value) || 800;
+  const style  = parseInt($('inp-style').value)  || 50;
+  const diff   = $('inp-diff').value;
+
+  if (days < 7)    { alert('You must enter a minimum of 7 days.'); return; }
+  if (budget < 200){ alert('Minimum 200€ budget required.'); return; }
+
+  initGame(days, budget, style, diff);
+  setScreen('s-game');
+  $('footer').style.display = 'none';
+  showPanel('pan-setup');
+
+  $('flight-list').innerHTML = AIRLINES.map((a, i) =>
+    `<div class="card" id="fl-${i}" onclick="bookFlight(${i},this)">
+       <div class="card-h"><span class="card-t">✈ ${a.name}</span>
+         <span class="badge ${a.xp<0?'badge-r':''}">${a.xp>=0?'+':''}${a.xp} XP</span></div>
+       <div class="card-note">${a.note}</div>
+       <div class="card-meta"><span>${a.cost}€</span><span>−${a.time}h flight</span></div>
+     </div>`
+  ).join('');
+
+  updateHUD();
+  setLog('Choose a flight ticket — the adventure begins!');
+}
+
+function bookFlight(idx, el) {
+  const a = AIRLINES[idx];
+  if (G.budget < a.cost) { alert('Insufficient budget!'); return; }
+  spend(a.cost); G.xp += a.xp; G.hours -= a.time;
+  disableGrid('flight-list', el);
+  $('internet-wrap').style.display = 'block';
+
+  $('internet-list').innerHTML = INTERNET.map((p, i) =>
+    `<div class="card" id="int-${i}" onclick="buyInternet(${i},this)">
+       <div class="card-h"><span class="card-t">📡 ${p.name}</span>
+         <span class="badge ${p.xp<0?'badge-r badge-gold':''}">${p.xp>=0?'+':''}${p.xp} XP</span></div>
+       <div class="card-note">${p.note}</div>
+       <div class="card-meta"><span>${p.cost}€</span><span>${p.time>0?'−'+p.time+'h':'Instant'}</span></div>
+     </div>`
+  ).join('');
+
+  updateHUD();
+  scrollTo($('internet-wrap'));
+  setLog('Great! Now choose an internet package.');
+}
+
+function buyInternet(idx, el) {
+  const p = INTERNET[idx];
+  if (G.budget < p.cost) { alert('Insufficient budget!'); return; }
+  spend(p.cost); G.hours -= p.time; G.xp += p.xp; G.internet = p.id;
+  disableGrid('internet-list', el);
+  $('footer').style.display = 'flex';
+  updateHUD();
+  setLog('Everything is ready. Towards the Balkans!');
+  setTimeout(() => enterCity(true), 600);
+}
+
+function enterCity(isNewCity) {
+  if (isNewCity) { G.daysInCity = 0; G.actsCompleted = []; }
+  G.accSelected    = null;
+  G.transSelected  = false;
+
+  const city = CITIES[G.cityIdx];
+  $('hud-city').textContent = city.name + ' · ' + city.country;
+  showPanel('pan-city');
+  updateCityProgress();
+
+  $('wrap-acc').style.display   = 'block';
+  $('wrap-trans').style.display = 'none';
+  $('wrap-free').style.display  = 'none';
+
+  $('btn-cancel').style.display  = 'none';
+  $('btn-travel').style.display  = (G.cityIdx > 0 || G.daysInCity > 0) ? 'block' : 'none';
+  $('btn-endday').style.display  = 'block';
+  $('btn-endday').disabled       = true;
+
+  $('acc-title').textContent = isNewCity
+    ? `Where Will You Stay? — ${city.name}`
+    : `${city.name} — Night ${G.daysInCity+1} Accommodation`;
+
+  $('acc-list').innerHTML = city.acc.map(a =>
+    `<div class="card" id="acc-${a.id}" onclick="selectAcc('${a.id}')">
+       <div class="card-h"><span class="card-t">🛏 ${a.name}</span>
+         <span class="badge">+${a.xp} XP/night</span></div>
+       <div class="card-note">${a.note}</div>
+       <div class="card-meta"><span>${a.cost}€/night</span><span class="pos">+${a.e} Energy</span></div>
+     </div>`
+  ).join('');
+
+  renderFoodPanel();
+  updateHUD();
+
+  const greeting = isNewCity
+    ? `Welcome to ${city.name}! 🎉`
+    : `Good morning ${city.name}! Day ${G.currentDay}/${G.totalDays}`;
+  setLog(greeting);
+}
+
+function selectAcc(id) {
+  const city = CITIES[G.cityIdx];
+  G.accSelected = city.acc.find(a => a.id === id);
+
+  disableGrid('acc-list', $(`acc-${id}`));
+
+  $('wrap-trans').style.display = 'block';
+  $('btn-endday').disabled      = false;
+  $('btn-travel').style.display = 'block';
+
+  renderTransportPanel();
+  updateHUD();
+  setLog(`Accommodation: ${G.accSelected.name}. Choose city transport.`);
+  scrollTo($('wrap-trans'));
+}
+
+function renderTransportPanel() {
+  const isBG  = CITIES[G.cityIdx].name === 'Belgrade';
+  const extra = extraTime();
+  $('trans-info').textContent = extra ? '+1h No Internet penalty active' : 'One-time choice';
+
+  const transports = [
+    {id:'tr0', name:'Walking',            cost:0,         time:3+extra,   xp:15, m:5},
+    {id:'tr1', name:'Public Transport' + (isBG?' (Free)':''), cost:isBG?0:5, time:1+extra, xp:5, m:isBG?10:0},
+    {id:'tr2', name:'Taxi',                cost:15,        time:0.2+extra, xp:0,  m:5}
+  ];
+
+  $('trans-list').innerHTML = transports.map(t =>
+    `<div class="card" id="${t.id}" onclick="selectTransport('${t.id}',${t.cost},${t.time},${t.xp},${t.m})">
+       <div class="card-h"><span class="card-t">${t.name}</span></div>
+       <div class="card-meta"><span>${t.cost}€</span><span>−${t.time.toFixed(1)}h</span></div>
+     </div>`
+  ).join('');
+}
+
+function selectTransport(id, cost, time, xp, m) {
+  if (G.transSelected) return;
+  if (G.budget < cost)  { alert('Insufficient budget!'); return; }
+  if (G.hours  < time)  { alert('Insufficient time!'); return; }
+
+  const mD = getDiffMod();
+  spend(cost); G.hours -= time; G.xp += xp;
+  mod('energy', -time * 3 * mD.drainMult);
+  mod('hunger', -time * 3 * mD.drainMult);
+  mod('happy', m);
+  G.transSelected = true;
+
+  disableGrid('trans-list', $(id));
+  $('wrap-free').style.display = 'block';
+  renderActivityPanel();
+  updateHUD();
+  setLog('Transport done! You can start activities.');
+  scrollTo($('wrap-free'));
+}
+
+function renderFoodPanel() {
+  $('food-list').innerHTML = FOOD.map((f, i) =>
+    `<div class="card" id="food-${i}" onclick="eatFood(${i})">
+       <div class="card-h"><span class="card-t">${f.icon} ${f.name}</span></div>
+       <div class="card-note">${f.hunger>0?`+${f.hunger} Hunger`:`+${f.energy} Energy`}${f.happy!==0?', '+(f.happy>0?'+':'')+f.happy+' Happy':''}</div>
+       <div class="card-meta"><span>${f.cost}€</span><span>−${f.time}h</span></div>
+     </div>`
+  ).join('');
+}
+
+function eatFood(idx) {
+  const f = FOOD[idx];
+  if (G.budget < f.cost) { alert('Insufficient budget!'); return; }
+  if (G.hours  < f.time) { alert('Insufficient time!'); return; }
+
+  const mD = getDiffMod();
+  spend(f.cost); G.hours -= f.time;
+
+  let happyDelta = f.happy;
+  if (f.isMeal) {
+    if (G.mealsToday >= 3) happyDelta += mD.overeatPenalty;
+    G.mealsToday++;
+  }
+  mod('hunger', f.hunger);
+  mod('energy', f.energy);
+  mod('happy',  happyDelta);
+
+  const el = $(`food-${idx}`);
+  el.style.borderColor = 'var(--teal)';
+  setTimeout(() => el.style.borderColor = '', 500);
+
+  updateHUD();
+  maybeRollEvent();
+  setLog(`${f.name} — bon appétit!`);
+}
+
+function renderActivityPanel() {
+  const city  = CITIES[G.cityIdx];
+  const extra = extraTime();
+  $('acts-info').textContent = extra ? '+1h No Internet penalty active' : 'Multiple choices allowed';
+
+  $('act-list').innerHTML = city.activities.map((a, i) => {
+    const done = G.actsCompleted.includes(i);
+    const t    = a.time + extra;
+    return `<div class="card${done?' done disabled':''}" id="act-${i}" onclick="doActivity(${i})">
+      <div class="card-h"><span class="card-t">${a.name}</span>
+        <span class="badge badge-g">+${a.xp} XP</span></div>
+      <div class="card-meta"><span>${a.cost}€</span><span>−${t.toFixed(1)}h</span></div>
+    </div>`;
+  }).join('');
+}
+
+function doActivity(i) {
+  if (G.actsCompleted.includes(i)) return;
+  const a    = CITIES[G.cityIdx].activities[i];
+  const time = a.time + extraTime();
+  if (G.budget < a.cost) { alert('Insufficient budget!'); return; }
+  if (G.hours  < time)   { alert('Not enough time for this activity!'); return; }
+
+  const mD = getDiffMod();
+  spend(a.cost); G.hours -= time; G.xp += a.xp;
+  mod('energy', -time * 4 * mD.drainMult);
+  mod('hunger', -time * 4 * mD.drainMult);
+  mod('happy', 5);
+  G.actsCompleted.push(i);
+
+  renderActivityPanel();
+  updateHUD();
+  maybeRollEvent();
+  setLog(`✅ ${a.name} completed! +${a.xp} XP`);
+}
+
+function endDay() {
+  if (gameEnded || !G.accSelected) return;
+
+  if (G.budget < G.accSelected.cost) {
+    endGame(`💸 No money for ${G.accSelected.name}! Bankrupt.`);
+    return;
+  }
+
+  const mD = getDiffMod();
+  spend(G.accSelected.cost);
+  G.xp += G.accSelected.xp;
+
+  let eGain = G.accSelected.e;
+  if(G.difficulty === 'hard') eGain = Math.round(eGain * 0.85);
+
+  mod('energy', eGain);
+  mod('happy',  G.accSelected.m + (G.difficulty==='hard' ? -10 : (G.difficulty==='normal' ? -5 : 0)));
+  mod('hunger', mD.overnightHunger);
+
+  G.daysInCity++;
+  G.mealsToday = 0;
+  G.currentDay++;
+  G.hours = 16;
+
+  if (G.currentDay > G.totalDays) {
+    endGame('📅 Your vacation time is up! Time to go home.');
+    return;
+  }
+
+  setLog(`Good night! Day ${G.currentDay}/${G.totalDays} begins…`);
+  updateHUD();
+  enterCity(false);
+}
+
+function showTravelPanel() {
+  if (gameEnded) return;
+  const city     = CITIES[G.cityIdx];
+  const nextName = G.cityIdx < CITIES.length - 1
+    ? CITIES[G.cityIdx + 1].name
+    : 'Turkey (Return Home)';
+
+  $('travel-title').textContent = `${city.name} → ${nextName}`;
+  $('travel-alert').textContent = city.travel.some(t => t.isEnd)
+    ? '✈ This is the last step — return to Turkey! Choose a good ticket.'
+    : 'Border crossings drain energy and happiness. Choose carefully!';
+
+  $('travel-list').innerHTML = city.travel.map((t, i) =>
+    `<div class="card" onclick="doTravel(${i})">
+       <div class="card-h">
+         <span class="card-t">${t.isEnd?'✈':'🚌'} ${t.name}</span>
+         <span class="badge ${t.isEnd?'badge-gold':'badge'}">${t.isEnd?'🏠 Return':'+'+t.xp+' XP'}</span>
+       </div>
+       <div class="card-note">${t.note||''} · Energy: ${t.e} · Happiness: ${t.m>=0?'+':''}${t.m}</div>
+       <div class="card-meta"><span>${t.cost}€</span><span>−${t.time}h journey</span></div>
+     </div>`
+  ).join('');
+
+  showPanel('pan-travel');
+  $('btn-cancel').style.display  = 'block';
+  $('btn-travel').style.display  = 'none';
+  $('btn-endday').style.display  = 'none';
+}
+
+function doTravel(idx) {
+  if (gameEnded) return;
+  const t = CITIES[G.cityIdx].travel[idx];
+  if (G.budget < t.cost) { alert('Insufficient budget for the ticket!'); return; }
+
+  const mD = getDiffMod();
+  spend(t.cost); G.xp += t.xp;
+  mod('energy', t.e * mD.drainMult);
+  mod('happy',  t.m);
+
+  if (t.isEnd) {
+    endGame('🎉 You successfully returned to Turkey! A great Balkan adventure!');
+    return;
+  }
+
+  G.hours -= t.time;
+  while (G.hours <= 0) {
+    G.currentDay++;
+    G.hours += 16;
+    mod('hunger', -10 * mD.drainMult);
+    mod('energy', -10 * mD.drainMult);
+  }
+
+  if (G.currentDay > G.totalDays) {
+    endGame('📅 Your vacation time ran out during the journey!');
+    return;
+  }
+
+  G.cityIdx++;
+  if (G.cityIdx >= CITIES.length) {
+    endGame('🏁 All cities completed! Great route!');
+    return;
+  }
+
+  updateHUD();
+  setLog(`Welcome to ${CITIES[G.cityIdx].name}!`);
+  enterCity(true);
+}
+
+function cancelTravel() {
+  showPanel('pan-city');
+  $('wrap-acc').style.display   = 'block';
+  $('wrap-trans').style.display = G.transSelected ? 'block' : 'none';
+  $('wrap-free').style.display  = G.transSelected ? 'block' : 'none';
+  if (G.transSelected) renderActivityPanel();
+
+  $('btn-cancel').style.display  = 'none';
+  $('btn-travel').style.display  = 'block';
+  $('btn-endday').style.display  = 'block';
+  $('btn-endday').disabled       = !G.accSelected;
+}
+
+function maybeRollEvent() {
+  const mD = getDiffMod();
+  if (gameEnded || Math.random() > mD.eventChance) return;
+  const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+
+  $('modal-title').textContent = ev.icon + ' ' + ev.title;
+  $('modal-desc').textContent  = ev.desc;
+
+  let btns = '';
+  if (ev.type === 'info') {
+    btns = `<button class="btn" onclick="execEvent(null)">Okay, I understand</button>`;
+  } else {
+    btns = ev.choices.map((c, i) =>
+      `<button class="btn${i > 0 ? ' btn-ghost' : ''}" onclick="execEvent(${i})">${c.label}</button>`
+    ).join('');
+  }
+  $('modal-btns').innerHTML = btns;
+  window._activeEvent = ev;
+
+  $('overlay').style.display = 'block';
+  $('modal').style.display   = 'block';
+}
+
+function execEvent(idx) {
+  if (idx === null) window._activeEvent.fn();
+  else              window._activeEvent.choices[idx].fn();
+  $('overlay').style.display = 'none';
+  $('modal').style.display   = 'none';
+  updateHUD();
+}
+
+function endGame(reason) {
+  if (gameEnded) return;
+  gameEnded = true;
+
+  const isWin = reason.includes('returned') || reason.includes('completed') || reason.includes('All cities');
+
+  setTimeout(() => {
+    setScreen('s-result');
+
+    $('res-icon').textContent    = isWin ? '🏆' : '💀';
+    $('res-title').textContent   = isWin ? 'Tour Completed!' : 'Journey Ended Early';
+    $('res-reason').textContent  = reason;
+    $('res-xp').textContent      = G.xp;
+    $('res-budget').textContent  = r(G.budget) + '€';
+    $('res-days').textContent    = Math.min(G.currentDay, G.totalDays) + ' / ' + G.totalDays;
+    $('res-cities').textContent  = G.cityIdx + ' / ' + CITIES.length + ' cities';
+    $('res-diff').textContent    = G.difficulty === 'hard' ? '🔴 Hard' : (G.difficulty === 'normal' ? '🟡 Normal' : '🟢 Easy');
+
+    const daysPlayed   = Math.max(1, Math.min(G.currentDay, G.totalDays));
+    const avgSpend     = G.spent / daysPlayed;
+    const actualStyle  = Math.min(100, Math.max(0, ((avgSpend - 15) / 110) * 100));
+    const accuracy     = Math.round(Math.max(0, 100 - Math.abs(G.targetStyle - actualStyle)));
+    const styleStr     = v => v <= 33 ? 'Backpacker' : v <= 66 ? 'Tourist' : 'Luxury';
+
+    $('res-target').textContent   = `${styleStr(G.targetStyle)} (${G.targetStyle})`;
+    $('res-actual').textContent   = `${styleStr(actualStyle)} (~${r(avgSpend)}€/day)`;
+    $('res-accuracy').textContent = `%${accuracy}`;
+
+    let icon, rank;
+    if (!isWin) {
+      icon = '💀'; rank = 'Clumsy Traveler — Resource Management Needed!';
+    } else if (accuracy >= 80 && G.xp >= 3500) {
+      icon = '👑'; rank = 'Balkan Legend — Flawless Traveler!';
+    } else if (accuracy >= 70 && G.xp >= 2000) {
+      icon = '🥇'; rank = 'Balkan Traveler — Great Job!';
+    } else if (G.xp >= 1500) {
+      icon = '🥈'; rank = 'Experienced Voyager — A Nice Tour!';
+    } else {
+      icon = '🥉'; rank = 'Novice Traveler — You need to travel more!';
+    }
+    $('res-rank-icon').textContent = icon;
+    $('res-rank').textContent      = rank;
+
+    // ── GAMSPY KARŞILAŞTIRMASI ──
+    const senXP    = G.xp;
+    const algoXP   = BOT.xp || 0;
+    const senHarc  = Math.round(G.spent);
+    const algoHarc = Math.round(BOT.spent || 0);
+    const xpFark   = senXP - algoXP;
+    const budgetFark = algoHarc - senHarc;
+
+    $('cmp-sen-xp').textContent      = senXP + ' XP';
+    $('cmp-sen-budget').textContent  = senHarc + '€ spent';
+    $('cmp-algo-xp').textContent     = algoXP + ' XP';
+    $('cmp-algo-budget').textContent = algoHarc + '€ would spend';
+
+    let winnerText, winnerBg;
+    if (xpFark > 50)       { winnerText = '🏆 You won!';       winnerBg = '#059669'; }
+    else if (xpFark > -50) { winnerText = '🤝 Very close!';          winnerBg = '#d97706'; }
+    else                   { winnerText = '🤖 GAMSPy won';    winnerBg = '#7c3aed'; }
+    $('algo-winner-badge').textContent        = winnerText;
+    $('algo-winner-badge').style.background   = winnerBg;
+
+    // Log the mathematical formulation behind GAMSPy instead of dynamic route choices.
+    const routeLines = `
+      <div style="padding:4px 0;">
+        <b>GAMSPy Formulation:</b><br>
+        <span style="color:#7c3aed;font-size:.9em;"><i>Maximize</i> Z = Σ (XP<sub>i</sub> × x<sub>i</sub>)</span><br>
+        <span style="color:#7c3aed;font-size:.9em;"><i>Subject to</i> Σ (Cost<sub>i</sub> × x<sub>i</sub>) ≤ Budget</span><br>
+        <span style="color:#7c3aed;font-size:.9em;">x<sub>i</sub> ∈ {0, 1}</span>
+      </div>`;
+    $('algo-route-detail').innerHTML = routeLines;
+
+    let insight;
+    if (xpFark > 100)
+      insight = `🎉 Great! You collected more XP than the algorithm. Human intuition won, but the algorithm used GAMSPy Mixed-Integer Programming to find the mathematical optimum based on strict constraints.`;
+    else if (xpFark > 50)
+      insight = `✅ Congratulations! You beat the algorithm by ${xpFark} XP. You managed to handle unexpected opportunities better than the strict mathematical model.`;
+    else if (xpFark > -50)
+      insight = `⚡ Incredibly close! Your human intuition almost completely matches the mathematical optimization logic of GAMSPy. You are a true solver!`;
+    else
+      insight = `🤖 The algorithm won this time. It used a GAMSPy mathematical model (Mixed-Integer Programming) to systematically evaluate all combinations and find the exact optimal route for your budget.`;
+    $('algo-insight').textContent = insight;
+
+  }, 250);
+}
+</script>
+</body>
+</html>
